@@ -1,0 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-headline: "Manrope", sans-serif;
+  --font-body: "Inter", sans-serif;
+  
+  --color-celestial-bg: #0c0c1f;
+  --color-celestial-surface: #111126;
+  --color-celestial-accent: #85adff;
+  --color-celestial-tertiary: #47c4ff;
+  --color-celestial-secondary: #a794fd;
+}
+
+@layer base {
+  body {
+    @apply bg-celestial-bg text-white font-body;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-celestial-surface/40 backdrop-blur-2xl border border-white/10;
+  }
+  
+  .text-glow {
+    text-shadow: 0 0 15px rgba(133, 173, 255, 0.3);
+  }
+}
