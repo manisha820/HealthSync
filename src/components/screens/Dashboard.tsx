@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from 'motion/react';
 import { 
   Settings, 
@@ -12,10 +13,40 @@ import {
   Plus 
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
+import DataEntryModal from '../DataEntryModal';
+import { generateInsight, calculateStreakData } from '../../lib/insightGenerator';
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const { todayData, historyData, addWater } = useData();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  const { streak } = calculateStreakData(historyData);
+
+  const name = user?.name?.split(' ')[0] || 'Traveler';
+  const hydration = todayData?.hydrationLiters || 0;
+  const hydrationGoal = todayData?.hydrationGoal || 3;
+  const hydrationPercent = Math.min(100, Math.round((hydration / hydrationGoal) * 100));
+  const vitalityScore = Math.floor((hydrationPercent / 100) * 40 + 52);
+
+  const sleepH = todayData?.sleepHours || 0;
+  const sleepM = todayData?.sleepMinutes || 0;
+  const deepSleepMinutes = todayData?.deepSleepMinutes || 0;
+  const deepH = Math.floor(deepSleepMinutes / 60);
+  const deepM = deepSleepMinutes % 60;
+  const remCycles = todayData?.remCycles || 0;
+  const heartRate = todayData?.heartRate || 0;
+  const dailySteps = todayData?.dailySteps || 0;
+  const stepTarget = todayData?.stepTarget || 10000;
+
+  const currentInsight = todayData ? generateInsight(todayData) : "Tracking your rhythm...";
+
   return (
     <div className="max-w-7xl mx-auto px-6 pt-4 pb-32 space-y-10">
+      <DataEntryModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+
       {/* Welcome Hero Section */}
       <section className="flex flex-col md:flex-row justify-between items-end gap-6">
         <div className="space-y-2">
@@ -24,8 +55,16 @@ export default function Dashboard() {
             animate={{ opacity: 1, y: 0 }}
             className="text-5xl font-extrabold font-headline tracking-tight text-white"
           >
-            Hello, Julian.
+            Hello, {name}.
           </motion.h1>
+          {streak === 0 && Object.keys(historyData).length > 2 && (
+             <motion.div 
+               initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+               className="bg-yellow-500/20 border border-yellow-500/50 p-4 rounded-xl text-yellow-500 font-bold max-w-lg mt-3"
+             >
+               Let's build a recovery strategy. Try hitting just 50% of your targets today to bounce back!
+             </motion.div>
+          )}
           <motion.p 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -43,7 +82,7 @@ export default function Dashboard() {
         >
           <div className="text-right">
             <p className="text-xs uppercase tracking-widest text-white/50 font-label">Vitality Score</p>
-            <p className="text-3xl font-bold font-headline text-celestial-accent">88/100</p>
+            <p className="text-3xl font-bold font-headline text-celestial-accent">{vitalityScore}/100</p>
           </div>
           <div className="w-12 h-12 rounded-full border-4 border-celestial-surface relative flex items-center justify-center">
             <div className="absolute inset-0 border-4 border-celestial-accent rounded-full border-t-transparent -rotate-45" />
@@ -79,7 +118,7 @@ export default function Dashboard() {
                 <div className="absolute inset-0 bg-celestial-surface rounded-full shadow-inner" />
                 <motion.div 
                   initial={{ height: 0 }}
-                  animate={{ height: '68%' }}
+                  animate={{ height: `${hydrationPercent}%` }}
                   transition={{ duration: 1.5, ease: "easeOut" }}
                   className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-celestial-accent/40 to-celestial-tertiary/20"
                   style={{ borderRadius: '0 0 100px 100px' }}
@@ -87,7 +126,7 @@ export default function Dashboard() {
                   <div className="absolute -top-4 left-0 w-full h-8 bg-celestial-accent/20 blur-md rounded-[40%_60%_70%_30%/40%_50%_60%_50%] animate-wave" />
                 </motion.div>
                 <div className="relative z-20 text-center">
-                  <span className="text-5xl font-extrabold font-headline block">2.4</span>
+                  <span className="text-5xl font-extrabold font-headline block">{hydration.toFixed(1)}</span>
                   <span className="text-sm font-label uppercase tracking-widest text-white/40">Liters</span>
                 </div>
               </div>
@@ -96,24 +135,31 @@ export default function Dashboard() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm font-label">
                     <span className="text-white/50">Daily Goal</span>
-                    <span className="text-white font-bold">68% Complete</span>
+                    <span className="text-white font-bold">{hydrationPercent}% Complete</span>
                   </div>
                   <div className="h-3 bg-celestial-surface rounded-full overflow-hidden">
                     <motion.div 
+                      key={hydrationPercent}
                       initial={{ width: 0 }}
-                      animate={{ width: '68%' }}
-                      transition={{ duration: 1, delay: 0.5 }}
+                      animate={{ width: `${hydrationPercent}%` }}
+                      transition={{ duration: 1 }}
                       className="h-full bg-gradient-to-r from-celestial-accent to-celestial-tertiary rounded-full shadow-[0_0_15px_rgba(133,173,255,0.4)]" 
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <button className="bg-white/5 hover:bg-white/10 transition-colors p-4 rounded-2xl flex flex-col items-center gap-2 group/btn active:scale-95 duration-200">
+                  <button 
+                    onClick={() => addWater(0.25)}
+                    className="bg-white/5 hover:bg-white/10 transition-colors p-4 rounded-2xl flex flex-col items-center gap-2 group/btn active:scale-95 duration-200"
+                  >
                     <Droplet className="text-celestial-accent group-hover/btn:scale-110 transition-transform w-5 h-5" />
                     <span className="text-xs font-bold uppercase tracking-tighter">+250ml</span>
                   </button>
-                  <button className="bg-white/5 hover:bg-white/10 transition-colors p-4 rounded-2xl flex flex-col items-center gap-2 group/btn active:scale-95 duration-200">
+                  <button 
+                    onClick={() => addWater(0.5)}
+                    className="bg-white/5 hover:bg-white/10 transition-colors p-4 rounded-2xl flex flex-col items-center gap-2 group/btn active:scale-95 duration-200"
+                  >
                     <GlassWater className="text-celestial-accent group-hover/btn:scale-110 transition-transform w-5 h-5" />
                     <span className="text-xs font-bold uppercase tracking-tighter">+500ml</span>
                   </button>
@@ -133,33 +179,41 @@ export default function Dashboard() {
           <div className="absolute -right-20 -top-20 w-64 h-64 bg-celestial-secondary/10 rounded-full blur-[80px]" />
           <div className="relative z-10">
             <div className="flex justify-between items-center mb-8">
-              <Moon className="text-celestial-secondary w-8 h-8" />
+              <div className="flex items-center gap-2">
+                <Moon className="text-celestial-secondary w-8 h-8" />
+                {todayData?.sleepTimerRunning && (
+                  <span className="flex items-center gap-2 text-[10px] font-bold text-celestial-secondary animate-pulse uppercase border border-celestial-secondary/30 px-2 py-1 rounded-full">
+                    <span className="w-1.5 h-1.5 bg-celestial-secondary rounded-full" />
+                    Tracking Live
+                  </span>
+                )}
+              </div>
               <span className="text-xs font-label uppercase tracking-widest text-white/40">Last Night</span>
             </div>
             <h2 className="text-6xl font-extrabold font-headline mb-4">
-              7<span className="text-2xl font-medium text-white/40 tracking-normal">h</span> 42
+              {sleepH}<span className="text-2xl font-medium text-white/40 tracking-normal">h</span> {sleepM}
               <span className="text-2xl font-medium text-white/40 tracking-normal">m</span>
             </h2>
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-white/40">Deep Sleep</span>
-                <span className="font-bold text-celestial-secondary">2h 15m</span>
+                <span className="font-bold text-celestial-secondary">{deepH}h {deepM}m</span>
               </div>
               <div className="h-1.5 bg-celestial-surface rounded-full overflow-hidden">
                 <motion.div 
                   initial={{ width: 0 }}
-                  animate={{ width: '33%' }}
+                  animate={{ width: `${Math.min(100, Math.floor((deepSleepMinutes / (sleepH * 60 || 1)) * 100))}%` }}
                   className="h-full bg-celestial-secondary" 
                 />
               </div>
               <div className="flex items-center justify-between text-sm pt-2">
                 <span className="text-white/40">REM Cycles</span>
-                <span className="font-bold text-celestial-secondary">4 Cycles</span>
+                <span className="font-bold text-celestial-secondary">{remCycles} Cycles</span>
               </div>
               <div className="h-1.5 bg-celestial-surface rounded-full overflow-hidden">
                 <motion.div 
                   initial={{ width: 0 }}
-                  animate={{ width: '80%' }}
+                  animate={{ width: `${Math.min(100, remCycles * 20)}%` }}
                   className="h-full bg-celestial-secondary" 
                 />
               </div>
@@ -185,7 +239,7 @@ export default function Dashboard() {
             </div>
             <div>
               <p className="text-xs uppercase tracking-widest text-white/40 font-label">Heart Rate</p>
-              <p className="text-2xl font-bold">64 <span className="text-xs text-white/40">BPM</span></p>
+              <p className="text-2xl font-bold">{heartRate} <span className="text-xs text-white/40">BPM</span></p>
             </div>
           </div>
           <div className="h-12 w-full flex items-end gap-1 px-1">
@@ -211,10 +265,10 @@ export default function Dashboard() {
             </div>
             <div>
               <p className="text-xs uppercase tracking-widest text-white/40 font-label">Daily Steps</p>
-              <p className="text-2xl font-bold">8,432</p>
+              <p className="text-2xl font-bold">{dailySteps.toLocaleString()}</p>
             </div>
           </div>
-          <p className="text-sm text-white/60">Targeting <span className="text-white font-bold">10,000</span> today</p>
+          <p className="text-sm text-white/60">Targeting <span className="text-white font-bold">{stepTarget.toLocaleString()}</span> today</p>
         </motion.div>
 
         <motion.div 
@@ -226,15 +280,15 @@ export default function Dashboard() {
               <Sparkles className="w-4 h-4" />
               AI Insight
             </div>
-            <p className="text-sm leading-relaxed mt-2">Hydration levels are helping your heart recovery rate. Keep it up!</p>
-            <button className="mt-4 text-xs font-bold uppercase tracking-widest text-celestial-accent flex items-center gap-2 hover:gap-3 transition-all">
-              View Analysis <ArrowRight className="w-3 h-3" />
-            </button>
+            <p className="text-sm leading-relaxed mt-2">{currentInsight}</p>
           </div>
         </motion.div>
       </div>
 
-      <button className="fixed bottom-24 right-6 w-14 h-14 bg-celestial-accent text-celestial-bg rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform z-40">
+      <button 
+        onClick={() => setIsModalOpen(true)}
+        className="fixed bottom-24 right-6 w-14 h-14 bg-celestial-accent text-celestial-bg rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform z-40 hover:scale-105"
+      >
         <Plus className="w-8 h-8" />
       </button>
     </div>

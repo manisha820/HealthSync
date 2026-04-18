@@ -8,11 +8,27 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '../../lib/utils';
+import { useData } from '../../contexts/DataContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabaseClient';
 
 export default function Onboarding({ onComplete }: { onComplete: () => void }) {
+  const { user } = useAuth();
+  const [name, setName] = useState(user?.name || '');
   const [age, setAge] = useState(28);
   const [gender, setGender] = useState('female');
   const [weight, setWeight] = useState(68);
+  const [unit, setUnit] = useState<'metric' | 'imperial'>('metric');
+  const { updateData } = useData();
+
+  const handleComplete = async () => {
+    if (user) {
+      await supabase.from('profiles').update({ name }).eq('id', user.id);
+    }
+    const finalWeight = unit === 'imperial' ? Math.round(weight * 0.453592) : weight;
+    updateData({ age, gender, weight: finalWeight });
+    onComplete();
+  };
 
   return (
     <div className="relative px-6 py-8 max-w-4xl mx-auto flex flex-col gap-12 min-h-screen">
@@ -62,6 +78,21 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
 
         {/* Inputs */}
         <div className="md:col-span-8 flex flex-col gap-8">
+          {/* Name selection */}
+          <div className="glass-card p-8 rounded-[2.5rem]">
+            <h3 className="font-headline font-bold text-xl tracking-tight mb-4">Your Profile</h3>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-label uppercase tracking-widest text-white/50 pl-2">Display Name</label>
+              <input 
+                type="text" 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="bg-black/20 focus:bg-white/5 border border-white/5 focus:border-celestial-accent/50 outline-none rounded-2xl px-5 py-4 text-white font-medium transition-all w-full"
+                placeholder="How should we call you?"
+              />
+            </div>
+          </div>
+
           {/* Age selection */}
           <div className="glass-card p-8 rounded-[2.5rem]">
             <div className="flex justify-between items-center mb-6">
@@ -120,13 +151,23 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                   value={weight}
                   onChange={(e) => setWeight(parseInt(e.target.value))}
                   className="bg-transparent text-6xl font-headline font-extrabold text-white border-none focus:ring-0 w-24 p-0" 
-                  placeholder="68"
+                  placeholder={unit === 'metric' ? "68" : "150"}
                 />
-                <span className="text-2xl font-bold text-celestial-accent/50">KG</span>
+                <span className="text-2xl font-bold text-celestial-accent/50">{unit === 'metric' ? 'KG' : 'LB'}</span>
               </div>
               <div className="mt-4 flex gap-2">
-                <button className="px-4 py-2 rounded-full text-xs font-label bg-white/10 text-celestial-accent border border-white/5">METRIC (KG)</button>
-                <button className="px-4 py-2 rounded-full text-xs font-label text-white/40 hover:bg-white/5 transition-colors">IMPERIAL (LB)</button>
+                <button 
+                  onClick={() => setUnit('metric')}
+                  className={cn("px-4 py-2 rounded-full text-xs font-label transition-colors", unit === 'metric' ? "bg-white/10 text-celestial-accent border border-white/5" : "text-white/40 hover:bg-white/5")}
+                >
+                  METRIC (KG)
+                </button>
+                <button 
+                  onClick={() => setUnit('imperial')}
+                  className={cn("px-4 py-2 rounded-full text-xs font-label transition-colors", unit === 'imperial' ? "bg-white/10 text-celestial-accent border border-white/5" : "text-white/40 hover:bg-white/5")}
+                >
+                  IMPERIAL (LB)
+                </button>
               </div>
             </div>
           </div>
@@ -143,7 +184,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
             </div>
             <h2 className="font-headline font-bold text-3xl text-white">Your personalized flow is ready to manifest.</h2>
             <p className="font-body text-white/60 leading-relaxed">
-              Based on your profile, HealthSync will prioritize evening hydration and deep-sleep recovery cycles starting tonight.
+              Based on your profile, your optimal sleep target is <strong className="text-white">{age < 18 ? 9 : age > 65 ? 7 : 8} hours</strong>, and your daily hydration goal is <strong className="text-white">{Math.ceil((weight * 0.033) / 0.25)} glasses</strong> ({Math.max(1.5, weight * 0.033).toFixed(1)}L).
             </p>
           </div>
           <div className="relative">
@@ -167,7 +208,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       {/* CTA */}
       <section className="flex flex-col items-center gap-8 py-12">
         <button 
-          onClick={onComplete}
+          onClick={handleComplete}
           className="group relative px-12 py-6 bg-celestial-accent text-celestial-bg font-headline font-bold text-xl rounded-full shadow-2xl active:scale-95 transition-all duration-300"
         >
           Initialize HealthSync Flow
